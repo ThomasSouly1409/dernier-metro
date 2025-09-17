@@ -1,20 +1,35 @@
+version: "3.9"
 
 services:
   api:
-    build: .
-    image: dm-api:v1
-    environment:
-      - PORT=5000
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dernier-metro-api
     ports:
-      - "5000:5000"
-
-  swagger:
-    image: swaggerapi/swagger-ui:5
+      - "3000:3000"
     environment:
-      - SWAGGER_JSON=/openapi/openapi.yaml
-    volumes:
-      - ./openapi:/usr/share/nginx/html/openapi:ro
-    ports:
-      - "8080:8080"
+      - PORT=3000
+      - PGHOST=db
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGDATABASE=metrodb
     depends_on:
-      - api
+      - db
+
+  db:
+    image: postgres:16
+    container_name: dernier-metro-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: metrodb
+    ports:
+      - "5432:5432"
+    volumes:
+       - pgdata:/var/lib/postgresql/data
+       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  pgdata:

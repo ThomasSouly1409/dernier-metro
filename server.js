@@ -1,39 +1,49 @@
 "use strict";
 const express = require("express");
-const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+const { Pool } = require("pg");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuration Swagger
+// --- Connexion PostgreSQL ---
+const pool = new Pool({
+  host: process.env.PGHOST || "localhost",
+  user: process.env.PGUSER || "postgres",
+  password: process.env.PGPASSWORD || "postgres",
+  database: process.env.PGDATABASE || "metrodb",
+  port: 5432,
+});
+
+// --- Configuration Swagger ---
 const swaggerOptions = {
   definition: {
-    openapi: '3.0.0',
+    openapi: "3.0.0",
     info: {
-      title: 'Dernier Métro API',
-      version: '1.0.0',
-      description: 'API pour connaître les horaires du dernier métro parisien',
+      title: "Dernier Métro API",
+      version: "1.0.0",
+      description: "API pour connaître les horaires du dernier métro parisien",
     },
     servers: [
       {
         url: `http://localhost:${PORT}`,
-        description: 'Serveur de développement',
+        description: "Serveur de développement",
       },
     ],
   },
-  apis: ['./server.js'], // Chemin vers les fichiers contenant les annotations
+  apis: ["./server.js"],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Route pour servir la documentation Swagger
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// --- Swagger ---
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Logger minimal: méthode, chemin, status, durée
+// --- Logger ---
 app.use((req, res, next) => {
   const t0 = Date.now();
-  res.on('finish', () => {
+  res.on("finish", () => {
     const dt = Date.now() - t0;
     console.log(`${req.method} ${req.path} -> ${res.statusCode} ${dt}ms`);
   });
@@ -45,32 +55,18 @@ app.use((req, res, next) => {
  * /health:
  *   get:
  *     summary: Vérification de l'état de l'API
- *     description: Endpoint de santé pour vérifier que l'API fonctionne
- *     tags:
- *       - Santé
- *     responses:
- *       200:
- *         description: API fonctionnelle
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: ok
- *                 service:
- *                   type: string
- *                   example: dernier-metro-api
+ *     tags: [Santé]
  */
-app.get('/health', (_req, res) => res.status(200).json({ status: 'ok', service: 'dernier-metro-api' }));
+app.get("/health", (_req, res) =>
+  res.status(200).json({ status: "ok", service: "dernier-metro-api" })
+);
 
-// Utilitaire pour simuler un horaire HH:MM
+// --- Utilitaire pour simuler HH:MM ---
 function nextTimeFromNow(headwayMin = 3) {
   const now = new Date();
   const next = new Date(now.getTime() + headwayMin * 60 * 1000);
-  const hh = String(next.getHours()).padStart(2, '0');
-  const mm = String(next.getMinutes()).padStart(2, '0');
+  const hh = String(next.getHours()).padStart(2, "0");
+  const mm = String(next.getMinutes()).padStart(2, "0");
   return `${hh}:${mm}`;
 }
 
@@ -78,75 +74,111 @@ function nextTimeFromNow(headwayMin = 3) {
  * @swagger
  * /next-metro:
  *   get:
- *     summary: Obtenir l'horaire du prochain métro
- *     description: Retourne l'horaire du prochain métro pour une station donnée
- *     tags:
- *       - Métro
- *     parameters:
- *       - in: query
- *         name: station
- *         required: true
- *         description: Nom de la station de métro
- *         schema:
- *           type: string
- *           example: Chatelet
- *     responses:
- *       200:
- *         description: Horaire du prochain métro
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 station:
- *                   type: string
- *                   description: Nom de la station
- *                   example: Chatelet
- *                 line:
- *                   type: string
- *                   description: Ligne de métro
- *                   example: M1
- *                 headwayMin:
- *                   type: integer
- *                   description: Fréquence en minutes
- *                   example: 3
- *                 nextArrival:
- *                   type: string
- *                   description: Horaire du prochain métro (HH:MM)
- *                   example: "14:35"
- *       400:
- *         description: Paramètre station manquant
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: missing station
+ *     summary: Horaire du prochain métro (simulation)
+ *     tags: [Métro]
  */
-app.get('/next-metro', (req, res) => {
-  const station = (req.query.station || '').toString().trim();
+app.get("/next-metro", (req, res) => {
+  const station = (req.query.station || "").toString().trim();
   if (!station) return res.status(400).json({ error: "missing station" });
-  return res.status(200).json({ station, line: 'M1', headwayMin: 3, nextArrival: nextTimeFromNow(3) });
+  return res.status(200).json({
+    station,
+    line: "M1",
+    headwayMin: 3,
+    nextArrival: nextTimeFromNow(3),
+  });
 });
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Error:
- *       type: object
- *       properties:
- *         error:
- *           type: string
- *           description: Message d'erreur
+ * /last-metro:
+ *   get:
+ *     summary: Horaire du dernier métro par station
+ *     tags: [Métro]
  */
+app.get("/last-metro", async (req, res) => {
+  const station = (req.query.station || "").toString().trim();
+  if (!station) return res.status(400).json({ error: "missing station" });
 
-// 404 JSON
-app.use((_req, res) => res.status(404).json({ error: 'not found' }));
+  try {
+    // Lire config globale (metro.defaults)
+    const defaultsRes = await pool.query(
+      `SELECT value FROM config WHERE key = 'metro.defaults'`
+    );
+    if (defaultsRes.rowCount === 0) {
+      return res.status(500).json({ error: "missing defaults in config" });
+    }
+    const defaults = defaultsRes.rows[0].value;
 
+    // Lire config last metros (metro.last)
+    const lastRes = await pool.query(
+      `SELECT value FROM config WHERE key = 'metro.last'`
+    );
+    if (lastRes.rowCount === 0) {
+      return res.status(500).json({ error: "missing last metros in config" });
+    }
+    const lastMap = lastRes.rows[0].value;
+
+    // Chercher station (insensible à la casse)
+    const stationKey = Object.keys(lastMap).find(
+      (s) => s.toLowerCase() === station.toLowerCase()
+    );
+    if (!stationKey) {
+      return res.status(404).json({ error: "station not found" });
+    }
+
+    return res.status(200).json({
+      station: stationKey,
+      lastMetro: lastMap[stationKey],
+      line: defaults.line,
+      tz: defaults.tz,
+    });
+  } catch (err) {
+    console.error("Erreur DB /last-metro :", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+/**
+ * @swagger
+ * /db-test:
+ *   get:
+ *     summary: Vérifier la connexion PostgreSQL
+ *     tags: [Base de données]
+ */
+app.get("/db-test", async (_req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW() as now");
+    res.json({ db_time: result.rows[0].now });
+  } catch (err) {
+    console.error("DB error", err);
+    res.status(500).json({ error: "db connection failed" });
+  }
+});
+
+/**
+ * @swagger
+ * /db-check:
+ *   get:
+ *     summary: Vérification complète DB
+ *     tags: [Base de données]
+ */
+app.get("/db-check", async (_req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW() as now");
+    res.json({ status: "ok", db_time: result.rows[0].now });
+  } catch (err) {
+    console.error("Erreur DB :", err.message);
+    res.status(500).json({ status: "error", error: err.message });
+  }
+});
+
+// --- 404 JSON ---
+app.use((_req, res) => res.status(404).json({ error: "not found" }));
+
+// --- Start server ---
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`API ready on http://localhost:${PORT}`);
-  console.log(`📚 Documentation Swagger disponible sur : http://localhost:${PORT}/api-docs`);
+  console.log(
+    `📚 Documentation Swagger disponible sur : http://localhost:${PORT}/api-docs`
+  );
 });
