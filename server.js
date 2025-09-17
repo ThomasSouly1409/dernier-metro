@@ -182,3 +182,5 @@ app.listen(PORT, "0.0.0.0", () => {
     `📚 Documentation Swagger disponible sur : http://localhost:${PORT}/api-docs`
   );
 });
+
+module.exports = app;
