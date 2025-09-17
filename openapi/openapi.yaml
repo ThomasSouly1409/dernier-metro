@@ -1,59 +1,109 @@
-
-openapi: 3.0.3
+openapi: 3.0.0
 info:
   title: Dernier Métro API
   version: 1.0.0
+  description: API pour connaître les horaires du prochain et dernier métro
 servers:
-  - url: http://localhost:5000
+  - url: http://localhost:3000
 paths:
-  /health:
-    get:
-      summary: Health check
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                  service:
-                    type: string
   /next-metro:
     get:
-      summary: Prochain passage de métro
+      summary: Obtenir le prochain métro pour une station
       parameters:
-        - in: query
-          name: station
+        - name: station
+          in: query
+          description: Nom de la station
+          required: true
           schema:
             type: string
-          required: true
-          description: Nom de la station
       responses:
         '200':
-          description: Heure d'arrivée estimée
+          description: Prochain métro trouvé
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  station:
-                    type: string
-                  line:
-                    type: string
-                  headwayMin:
-                    type: integer
-                  nextArrival:
-                    type: string
-                    example: "12:34"
+                $ref: '#/components/schemas/MetroResponse'
         '400':
-          description: Paramètre manquant
+          description: Paramètre manquant ou invalide
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Station non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erreur serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /last-metro:
+    get:
+      summary: Obtenir le dernier métro pour une station
+      parameters:
+        - name: station
+          in: query
+          description: Nom de la station
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dernier métro trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetroResponse'
+        '400':
+          description: Paramètre manquant ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Station non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erreur serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    MetroResponse:
+      type: object
+      properties:
+        station:
+          type: string
+        line:
+          type: string
+        headwayMin:
+          type: integer
+        nextArrival:
+          type: string
+          format: date-time
+        lastMetro:
+          type: string
+        tz:
+          type: string
+      required:
+        - station
+        - line
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
