@@ -12,25 +12,26 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres:15
+        env:
+          POSTGRES_USER: metro
+          POSTGRES_PASSWORD: metro
+          POSTGRES_DB: metrodb
         ports:
           - 5432:5432
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: metro
         options: >-
-          --health-cmd="pg_isready -U postgres"
+          --health-cmd="pg_isready -U metro -d metrodb"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
 
     env:
       PGHOST: localhost
-      PGUSER: postgres
-      PGPASSWORD: postgres
-      PGDATABASE: metro
+      PGUSER: metro
+      PGPASSWORD: metro
+      PGDATABASE: metrodb
       PGPORT: 5432
+      NODE_ENV: test
 
     steps:
       - uses: actions/checkout@v3
@@ -40,7 +41,21 @@ jobs:
         with:
           node-version: 18
 
-      - run: npm ci
-      - run: npm test
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U metro; do
+            echo "Waiting for PostgreSQL to start..."
+            sleep 2
+          done
+
+      - name: Initialize database
+        run: psql -h localhost -U metro -d metrodb -f sql/init.sql
+
+      - name: Run unit tests
+        run: npm test
+
       - name: Run integration tests
         run: npm run test:integration
