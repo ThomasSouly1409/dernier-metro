@@ -46,10 +46,8 @@ jobs:
 
       - name: Wait for PostgreSQL
         run: |
-          until pg_isready -h localhost -p 5432 -U metro; do
-            echo "Waiting for PostgreSQL to start..."
-            sleep 2
-          done
+          echo "Waiting 10s for PostgreSQL..."
+          sleep 10
 
       - name: Initialize database
         run: psql -h localhost -U metro -d metrodb -f sql/init.sql
