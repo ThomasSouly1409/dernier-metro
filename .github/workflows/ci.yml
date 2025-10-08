@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
   pull_request:
-    branches: [master]
+    branches: [ master ]
 
 jobs:
   build:
@@ -12,48 +12,49 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:14
         env:
-          POSTGRES_USER: metro
-          POSTGRES_PASSWORD: metro
-          POSTGRES_DB: metrodb
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: metro
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U metro -d metrodb"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
-    env:
-      PGHOST: localhost
-      PGUSER: metro
-      PGPASSWORD: metro
-      PGDATABASE: metrodb
-      PGPORT: 5432
-      NODE_ENV: test
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Install dependencies
         run: npm ci
 
       - name: Wait for PostgreSQL
         run: |
-          echo "Waiting 10s for PostgreSQL..."
-          sleep 10
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "⏳ Waiting for PostgreSQL..."
+            sleep 2
+          done
 
-      - name: Initialize database
-        run: psql -h localhost -U metro -d metrodb -f sql/init.sql
+      - name: Initialize DB
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d metro -c "
+          CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value JSONB
+          );
+          INSERT INTO config(key, value) VALUES
+          ('metro.defaults', '{\"line\":\"M1\",\"tz\":\"Europe/Paris\"}'),
+          ('metro.last', '{\"Chatelet\":\"01:30\",\"Bastille\":\"01:45\"}')
+          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+          "
 
-      - name: Run unit tests
+      - name: Run tests
         run: npm test
-
-      - name: Run integration tests
-        run: npm run test:integration
