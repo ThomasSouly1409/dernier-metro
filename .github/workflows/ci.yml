@@ -24,7 +24,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - uses: actions/checkout@v3
 
@@ -88,5 +87,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository | lower }}/dernier-metro-api:latest
-            ghcr.io/${{ github.repository | lower }}/dernier-metro-api:${{ github.sha }}
+            ghcr.io/thomassouly1409/dernier-metro/dernier-metro-api:latest
+            ghcr.io/thomassouly1409/dernier-metro/dernier-metro-api:${{ github.sha }}
