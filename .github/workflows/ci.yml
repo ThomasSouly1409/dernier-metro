@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: metro
+          POSTGRES_DB: metrodb
         ports:
           - 5432:5432
         options: >-
@@ -45,7 +45,7 @@ jobs:
 
       - name: Initialize DB
         run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d metro -c "
+          PGPASSWORD=postgres psql -h localhost -U postgres -d metrodb -c "
           CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,
             value JSONB
@@ -57,4 +57,10 @@ jobs:
           "
 
       - name: Run tests
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: metrodb 
+          PGPORT: 5432
         run: npm test
