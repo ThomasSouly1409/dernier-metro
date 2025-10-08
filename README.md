@@ -12,3 +12,5 @@ Commandes:
 - `docker compose up -d`
 - Ouvrir http://localhost:8080
 - API: `curl http://localhost:5000/health`
+
+[![CI](https://github.com/ThomasSouly1409/dernier-metro/actions/workflows/ci.yml/badge.svg)](https://github.com/ThomasSouly1409/dernier-metro/actions/workflows/ci.yml)
