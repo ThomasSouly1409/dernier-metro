@@ -1,0 +1,47 @@
+stages:
+  - lint
+  - test
+
+variables:
+  NODE_ENV: test
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .npm/
+    - api/node_modules/
+
+lint:
+  stage: lint
+  image: node:18-alpine
+  script:
+    - cd api
+    - npm ci
+    - npx eslint . --ext .js || true
+  only:
+    - merge_requests
+    - main
+
+test:
+  stage: test
+  image: node:18-alpine
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    POSTGRES_DB: metrodb
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: 5432
+  script:
+    - cd api
+    - npm ci
+    - echo "⏳ Attente du service Postgres..."
+    - for i in `seq 1 10`; do nc -z postgres 5432 && echo "✅ Postgres prêt" && break || echo "En attente..." && sleep 3; done
+    - npm test
+    - npm run test:integration
+  only:
+    - merge_requests
+    - main
