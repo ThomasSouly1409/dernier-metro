@@ -88,5 +88,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/dernier-metro-api:latest
-            ghcr.io/${{ github.repository }}/dernier-metro-api:${{ github.sha }}
+            ghcr.io/${{ github.repository | lower }}/dernier-metro-api:latest
+            ghcr.io/${{ github.repository | lower }}/dernier-metro-api:${{ github.sha }}
