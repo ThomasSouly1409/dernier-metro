@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  api:
+    image: ghcr.io/thomassouly1409/dernier-metro-api:latest
+    container_name: dernier-metro-green
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - PGHOST=postgres
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGDATABASE=metrodb
+    ports:
+      - "5001:5000"  
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:14
+    container_name: postgres-green
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=metrodb
+    volumes:
+      - pgdata_green:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+
+volumes:
+  pgdata_green:
